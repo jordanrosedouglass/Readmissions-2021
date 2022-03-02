@@ -1,0 +1,272 @@
+---
+title: "Lakeland Regional Health Readmissions Analysis"
+subtitle: "COPD 2019"
+author: "Jordan Douglass"
+output: html_notebook
+---
+
+```{r, warning=FALSE,message=FALSE}
+library(dplyr)
+library(tidyverse)
+library(gt)
+library(scales)
+library(ggplot2)
+library(knitr)
+```
+
+
+# COPD 2018
+
+```{r,message=FALSE,warning=FALSE}
+df <- read_csv("/Users/jordandouglass/Desktop/Readmissions 2/data/Readmissions2018.csv")
+```
+
+```{r}
+head(df)
+```
+
+```{r}
+#fix column names to play better with R.
+df <- df %>% 
+  rename_all(make.names)
+```
+
+```{r}
+#Create categorical variable for age group
+df <- df %>% 
+  mutate(Age.Group = case_when(
+    Age >= 18 & Age <= 45 ~ 1,
+    Age >= 45 & Age <= 55 ~ 2,
+    Age >= 55 & Age <= 65 ~ 3,
+    Age >= 65 & Age <= 75 ~ 4,
+    Age >= 75 & Age <= 85 ~ 5,
+    Age > 85 ~ 6
+  ))
+```
+
+
+```{r}
+#create subsets of dataset to filter by population, visits, readmitted
+#COPD 2019
+
+#ALL
+COPD <- df %>% 
+  filter(COPD.Population == "Yes") %>% 
+  na.omit()
+
+#Visit only
+COPD_vis <- COPD %>% 
+  filter(Future.30.Day.Readmission == "No")
+
+#30 Day Readmission
+COPD_read <- COPD %>% 
+  filter(Future.30.Day.Readmission == "Yes")
+```
+
+
+```{r}
+ptotal <- COPD %>% 
+  count()
+
+vtotal <- COPD %>% 
+  filter(Future.30.Day.Readmission == "No") %>% count()
+
+rtotal <- COPD %>% 
+  filter(Future.30.Day.Readmission == "Yes") %>% count()
+```
+
+
+```{r}
+#GENDER - COPD
+
+COPDGender <- data.frame(
+  Category = c("Visits", "Readmitted"),
+  Female = percent(as.numeric(c( 
+              COPD %>% 
+                filter(Gender == "F" & Future.30.Day.Readmission == "No") %>% 
+                count()/vtotal,
+              COPD %>% 
+                filter(Gender == "F" & Future.30.Day.Readmission == "Yes") %>% 
+                count()/rtotal))),
+  Male = percent(as.numeric(c(
+              COPD %>% 
+                filter(Gender == "M" & Future.30.Day.Readmission == "No") %>% 
+                count()/vtotal,
+              COPD %>% 
+                filter(Gender == "M" & Future.30.Day.Readmission == "Yes") %>% 
+                count()/rtotal)))
+)
+
+gt(COPDGender) %>% 
+  tab_header(
+    title = md("Gender - COPD - 2019")
+  )
+```
+
+
+```{r}
+mean(COPD_vis$Length.of.Stay)
+```
+
+
+```{r}
+#LENGTH OF STAY - COPD - 2019
+COPDlength <- data.frame(
+  Category = c("Visits", "Readmitted"),
+  Mean = round(c(mean(COPD_vis$Length.of.Stay), mean(COPD_read$Length.of.Stay)), 2),
+  SD = round(c(sd(COPD_vis$Length.of.Stay), sd(COPD_read$Length.of.Stay)), 2)
+)
+gt(COPDlength) %>% 
+  tab_header(
+    title = md("Length of Stay (Days) - COPD - 2019")
+  )
+```
+
+```{r}
+# RACE - COPD - 2019
+COPDRace <- data.frame(
+  Category = c("Visits", "Readmitted"),
+  White = percent(as.numeric(c(
+    COPD_vis %>% filter(Race == "WHITE") %>% count() / vtotal,
+    COPD_read %>% filter(Race == "WHITE") %>% count() / rtotal
+  ))),
+  Black = percent(as.numeric(c(
+    COPD_vis %>% filter(Race == "BLACK") %>% count() / vtotal,
+    COPD_read %>% filter(Race == "BLACK") %>% count() / rtotal
+  )))
+)
+
+gt(COPDRace) %>% 
+  tab_header(
+    title = md("Race - COPD - 2019")
+  )
+```
+
+```{r}
+#AGE - COPD - 2019
+
+COPDAge <- data.frame(
+  Category = c("Visits", "Readmitted"),
+  Age_18_45 = percent(as.numeric(c(
+    COPD_vis %>% filter(Age.Group == 1) %>% count() / vtotal,
+    COPD_read %>% filter(Age.Group == 1) %>% count() / rtotal
+  ))),
+  Age_45_55 = percent(as.numeric(c(
+    COPD_vis %>% filter(Age.Group == 2) %>% count() / vtotal,
+    COPD_read %>% filter(Age.Group == 2) %>% count() / rtotal
+  ))),
+  Age_55_65 = percent(as.numeric(c(
+    COPD_vis %>% filter(Age.Group == 3) %>% count() / vtotal,
+    COPD_read %>% filter(Age.Group == 3) %>% count() / rtotal
+  ))),
+  Age_65_75 = percent(as.numeric(c(
+    COPD_vis %>% filter(Age.Group == 4) %>% count() / vtotal,
+    COPD_read %>% filter(Age.Group == 4) %>% count() / rtotal
+  ))),
+  Age_75_85 = percent(as.numeric(c(
+    COPD_vis %>% filter(Age.Group == 5) %>% count() / vtotal,
+    COPD_read %>% filter(Age.Group == 5) %>% count() / rtotal
+  ))),
+  Age_85_up = percent(as.numeric(c(
+    COPD_vis %>% filter(Age.Group == 6) %>% count() / vtotal,
+    COPD_read %>% filter(Age.Group == 6) %>% count() / rtotal
+  )))
+)
+
+gt(COPDAge) %>% 
+  tab_header(
+    title = md("Age - COPD - 2019")
+  )
+```
+```{r}
+unique(COPD$Admit.Source)
+```
+
+
+```{r}
+#Admit Source - COPD - 2019
+COPDSource <- data.frame(
+  Category = c("Visits", "Readmitted"),
+  Non_Healthcare = percent(as.numeric(c(
+    COPD_vis %>% filter(Admit.Source == "NON-HEALTH CARE FACLITY POINT OF ORIGIN") %>% count() / vtotal,
+    COPD_read %>% filter(Admit.Source == "NON-HEALTH CARE FACLITY POINT OF ORIGIN") %>% count() / rtotal
+  ))),
+  Clinic = percent(as.numeric(c(
+    COPD_vis %>% filter(Admit.Source == "CLINIC\r") %>% count() / vtotal,
+    COPD_read %>% filter(Admit.Source == "CLINIC\r") %>% count() / rtotal
+  ))),
+  Hospital_ACF = percent(as.numeric(c(
+    COPD_vis %>% filter(Admit.Source == "FROM HOSPITAL/ACF") %>% count() / vtotal,
+    COPD_read %>% filter(Admit.Source == "FROM HOSPITAL/ACF") %>% count() / rtotal
+  )))
+)
+
+gt(COPDSource) %>% 
+  tab_header(
+    title = md("Admission Source - COPD - 2019")
+  )
+```
+
+```{r}
+unique(COPD$Admit.Type)
+```
+
+
+```{r}
+#Admit Type -COPD - 2019
+COPDType <- data.frame(
+  Category = c("Visits", "Readmitted"),
+  Emergency = percent(as.numeric(c(
+    COPD_vis %>% filter(Admit.Type == "EMERGENCY") %>% count() / vtotal,
+    COPD_read %>% filter(Admit.Type == "EMERGENCY") %>% count() / rtotal
+  ))),
+  Elective = percent(as.numeric(c(
+    COPD_vis %>% filter(Admit.Type == "ELECTIVE") %>% count() / vtotal,
+    COPD_read %>% filter(Admit.Type == "ELECTIVE") %>% count() / rtotal
+  ))),
+  Urgent = percent(as.numeric(c(
+    COPD_vis %>% filter(Admit.Type == "URGENT") %>% count() / vtotal,
+    COPD_read %>% filter(Admit.Type == "URGENT") %>% count() / rtotal
+  )))
+)
+
+gt(COPDType) %>% 
+  tab_header(
+    title = md("Admission Type - COPD - 2019")
+    )
+```
+
+```{r}
+COPD %>% 
+  count(Admit.Type) %>% 
+  mutate(perc = n / nrow(COPD))
+```
+
+
+```{r}
+COPD_vis %>% 
+  count(Admit.Type) %>% 
+  mutate(perc = n / nrow(COPD_vis)) -> COPD2
+
+ggplot(COPD2, aes(x = Admit.Type, y = perc, fill = Admit.Type)) + 
+  geom_bar(stat = "identity", show.legend = FALSE, colour = "black") + 
+  labs(x = "Admission Type",y = "Percent", title = "Admission Type - Visits - COPD - 2019") +
+  geom_text(aes(label = percent(perc)), position = position_stack(vjust = 0.5)) +
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_brewer(palette = "Pastel1")
+```
+
+```{r}
+COPD_read %>% 
+  count(Admit.Type) %>% 
+  mutate(perc = n / nrow(COPD_read)) -> COPD2
+
+ggplot(COPD2, aes(x = Admit.Type, y = perc, fill = Admit.Type)) + 
+  geom_bar(stat = "identity", show.legend = FALSE, colour = "Black") + 
+  labs(x = "Admission Type",y = "Percent", title = "Admission Type - Readmitted - COPD - 2019") +
+  geom_text(aes(label = percent(perc)), position = position_stack(vjust=0.5)) +
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_brewer(palette = "Pastel1")
+```

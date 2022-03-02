@@ -1,0 +1,303 @@
+---
+title: "Lakeland Regional Health Readmissions Analysis"
+subtitle: "HF 2020"
+author: "Jordan Douglass"
+output: html_notebook
+---
+
+```{r, warning=FALSE,message=FALSE}
+library(dplyr)
+library(tidyverse)
+library(gt)
+library(scales)
+library(ggplot2)
+library(knitr)
+```
+
+
+# HF 2020
+
+```{r,message=FALSE,warning=FALSE}
+df <- read_csv("/Users/jordandouglass/Desktop/Readmissions 2/data/Readmissions2020.csv")
+```
+
+```{r}
+head(df)
+```
+
+```{r}
+#fix column names to play better with R.
+df <- df %>% 
+  rename_all(make.names)
+```
+
+```{r}
+#Create categorical variable for age group
+df <- df %>% 
+  mutate(Age.Group = case_when(
+    Age >= 18 & Age <= 45 ~ 1,
+    Age >= 45 & Age <= 55 ~ 2,
+    Age >= 55 & Age <= 65 ~ 3,
+    Age >= 65 & Age <= 75 ~ 4,
+    Age >= 75 & Age <= 85 ~ 5,
+    Age > 85 ~ 6
+  ))
+```
+
+
+```{r}
+#create subsets of dataset to filter by population, visits, readmitted
+#HF 2020
+
+#ALL
+HF <- df %>% 
+  filter(HF.Population == "Yes") %>% 
+  na.omit()
+
+#Visit only
+HF_vis <- HF %>% 
+  filter(Future.30.Day.Readmission == "No")
+
+#30 Day Readmission
+HF_read <- HF %>% 
+  filter(Future.30.Day.Readmission == "Yes")
+```
+
+
+```{r}
+ptotal <- HF %>% 
+  count()
+
+vtotal <- HF %>% 
+  filter(Future.30.Day.Readmission == "No") %>% count()
+
+rtotal <- HF %>% 
+  filter(Future.30.Day.Readmission == "Yes") %>% count()
+```
+
+
+```{r}
+#GENDER - HF
+
+HFGender <- data.frame(
+  Category = c("Visits", "Readmitted"),
+  Female = percent(as.numeric(c( 
+              HF %>% 
+                filter(Gender == "F" & Future.30.Day.Readmission == "No") %>% 
+                count()/vtotal,
+              HF %>% 
+                filter(Gender == "F" & Future.30.Day.Readmission == "Yes") %>% 
+                count()/rtotal))),
+  Male = percent(as.numeric(c(
+              HF %>% 
+                filter(Gender == "M" & Future.30.Day.Readmission == "No") %>% 
+                count()/vtotal,
+              HF %>% 
+                filter(Gender == "M" & Future.30.Day.Readmission == "Yes") %>% 
+                count()/rtotal)))
+)
+
+gt(HFGender) %>% 
+  tab_header(
+    title = md("Gender - HF - 2020")
+  )
+```
+
+
+```{r}
+mean(HF_vis$Length.of.Stay)
+```
+
+
+```{r}
+#LENGTH OF STAY - HF - 2020
+HFlength <- data.frame(
+  Category = c("Visits", "Readmitted"),
+  Mean = round(c(mean(HF_vis$Length.of.Stay), mean(HF_read$Length.of.Stay)), 2),
+  SD = round(c(sd(HF_vis$Length.of.Stay), sd(HF_read$Length.of.Stay)), 2)
+)
+gt(HFlength) %>% 
+  tab_header(
+    title = md("Length of Stay (Days) - HF - 2020")
+  )
+```
+
+```{r}
+# RACE - HF - 2020
+HFRace <- data.frame(
+  Category = c("Visits", "Readmitted"),
+  White = percent(as.numeric(c(
+    HF_vis %>% filter(Race == "WHITE") %>% count() / vtotal,
+    HF_read %>% filter(Race == "WHITE") %>% count() / rtotal
+  ))),
+  Black = percent(as.numeric(c(
+    HF_vis %>% filter(Race == "BLACK") %>% count() / vtotal,
+    HF_read %>% filter(Race == "BLACK") %>% count() / rtotal
+  ))),
+    Asian = percent(as.numeric(c(
+    HF_vis %>% filter(Race == "ASIAN") %>% count() / vtotal,
+    HF_read %>% filter(Race == "ASIAN") %>% count() / rtotal
+  ))),
+    Unknown = percent(as.numeric(c(
+    HF_vis %>% filter(Race == "UNKNOWN") %>% count() / vtotal,
+    HF_read %>% filter(Race == "UNKNOWN") %>% count() / rtotal
+  ))),
+    Indian = percent(as.numeric(c(
+    HF_vis %>% filter(Race == "AM INDIAN/AK NATIVE") %>% count() / vtotal,
+    HF_read %>% filter(Race == "AM INDIAN/AK NATIVE") %>% count() / rtotal
+  ))),
+  Ref = percent(as.numeric(c(
+    HF_vis %>% filter(Race == "REFUSES TO ANSWER") %>% count() / vtotal,
+    HF_read %>% filter(Race == "REFUSES TO ANSWER") %>% count() / rtotal
+  )))
+)
+
+gt(HFRace) %>% 
+  tab_header(
+    title = md("Race - HF - 2020")
+  )
+```
+
+```{r}
+#AGE - HF - 2020
+
+HFAge <- data.frame(
+  Category = c("Visits", "Readmitted"),
+  Age_18_45 = percent(as.numeric(c(
+    HF_vis %>% filter(Age.Group == 1) %>% count() / vtotal,
+    HF_read %>% filter(Age.Group == 1) %>% count() / rtotal
+  ))),
+  Age_45_55 = percent(as.numeric(c(
+    HF_vis %>% filter(Age.Group == 2) %>% count() / vtotal,
+    HF_read %>% filter(Age.Group == 2) %>% count() / rtotal
+  ))),
+  Age_55_65 = percent(as.numeric(c(
+    HF_vis %>% filter(Age.Group == 3) %>% count() / vtotal,
+    HF_read %>% filter(Age.Group == 3) %>% count() / rtotal
+  ))),
+  Age_65_75 = percent(as.numeric(c(
+    HF_vis %>% filter(Age.Group == 4) %>% count() / vtotal,
+    HF_read %>% filter(Age.Group == 4) %>% count() / rtotal
+  ))),
+  Age_75_85 = percent(as.numeric(c(
+    HF_vis %>% filter(Age.Group == 5) %>% count() / vtotal,
+    HF_read %>% filter(Age.Group == 5) %>% count() / rtotal
+  ))),
+  Age_85_up = percent(as.numeric(c(
+    HF_vis %>% filter(Age.Group == 6) %>% count() / vtotal,
+    HF_read %>% filter(Age.Group == 6) %>% count() / rtotal
+  )))
+)
+
+gt(HFAge) %>% 
+  tab_header(
+    title = md("Age - HF - 2020")
+  )
+```
+```{r}
+unique(HF$Admit.Source)
+```
+
+
+```{r}
+#Admit Source - HF - 2020
+HFSource <- data.frame(
+  Category = c("Visits", "Readmitted"),
+  Non_Healthcare = percent(as.numeric(c(
+    HF_vis %>% filter(Admit.Source == "NON-HEALTH CARE FACLITY POINT OF ORIGIN") %>% count() / vtotal,
+    HF_read %>% filter(Admit.Source == "NON-HEALTH CARE FACLITY POINT OF ORIGIN") %>% count() / rtotal
+  ))),
+  Clinic = percent(as.numeric(c(
+    HF_vis %>% filter(Admit.Source == "CLINIC\r") %>% count() / vtotal,
+    HF_read %>% filter(Admit.Source == "CLINIC\r") %>% count() / rtotal
+  ))),
+  Hospital_ACF = percent(as.numeric(c(
+    HF_vis %>% filter(Admit.Source == "FROM HOSPITAL/ACF") %>% count() / vtotal,
+    HF_read %>% filter(Admit.Source == "FROM HOSPITAL/ACF") %>% count() / rtotal
+  )))
+)
+
+gt(HFSource) %>% 
+  tab_header(
+    title = md("Admission Source - HF - 2020")
+  )
+```
+
+```{r}
+unique(HF$Admit.Type)
+```
+
+
+```{r}
+#Admit Type - HF - 2020
+HFType <- data.frame(
+  Category = c("Visits", "Readmitted"),
+  Emergency = percent(as.numeric(c(
+    HF_vis %>% filter(Admit.Type == "EMERGENCY") %>% count() / vtotal,
+    HF_read %>% filter(Admit.Type == "EMERGENCY") %>% count() / rtotal
+  ))),
+  Elective = percent(as.numeric(c(
+    HF_vis %>% filter(Admit.Type == "ELECTIVE") %>% count() / vtotal,
+    HF_read %>% filter(Admit.Type == "ELECTIVE") %>% count() / rtotal
+  ))),
+  Urgent = percent(as.numeric(c(
+    HF_vis %>% filter(Admit.Type == "URGENT") %>% count() / vtotal,
+    HF_read %>% filter(Admit.Type == "URGENT") %>% count() / rtotal
+  ))),
+  Trauma = percent(as.numeric(c(
+    HF_vis %>% filter(Admit.Type == "TRAUMA") %>% count() / vtotal,
+    HF_read %>% filter(Admit.Type == "TRAUMA") %>% count() / rtotal
+  )))
+)
+
+gt(HFType) %>% 
+  tab_header(
+    title = md("Admission Type - HF - 2020")
+    )
+```
+
+```{r}
+HF %>% 
+  count(Admit.Type) %>% 
+  mutate(perc = n / nrow(HF))
+```
+
+```{r}
+unique(HF$MSDRG)
+```
+
+```{r}
+unique(HF$Person.Identifier)
+```
+
+```{r}
+mean(HF$Age)
+```
+
+```{r}
+HF_vis %>% 
+  count(Admit.Type) %>% 
+  mutate(perc = n / nrow(HF_vis)) -> HF2
+
+ggplot(HF2, aes(x = Admit.Type, y = perc, fill = Admit.Type)) + 
+  geom_bar(stat = "identity", show.legend = FALSE, colour = "black") + 
+  labs(x = "Admission Type",y = "Percent", title = "Admission Type - Visits - HF - 2020") +
+  geom_text(aes(label = percent(perc)), position = position_stack(vjust = 0.5)) +
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_brewer(palette = "Pastel1")
+```
+
+```{r}
+HF_read %>% 
+  count(Admit.Type) %>% 
+  mutate(perc = n / nrow(HF_read)) -> HF2
+
+ggplot(HF2, aes(x = Admit.Type, y = perc, fill = Admit.Type)) + 
+  geom_bar(stat = "identity", show.legend = FALSE, colour = "Black") + 
+  labs(x = "Admission Type",y = "Percent", title = "Admission Type - Readmitted - HF - 2020") +
+  geom_text(aes(label = percent(perc)), position = position_stack(vjust=0.5)) +
+  theme_classic() + 
+  theme(plot.title = element_text(hjust = 0.5)) +
+  scale_fill_brewer(palette = "Pastel1")
+```
